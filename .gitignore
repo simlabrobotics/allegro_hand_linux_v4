@@ -1,0 +1,10 @@
+/cmake_*
+/cmake-*
+/CMakeCache.txt
+/CMakeFiles
+/.idea
+/Makefile
+/grasp/cmake_*
+/grasp/grasp
+/grasp/Makefile
+/grasp/CMakeFiles
