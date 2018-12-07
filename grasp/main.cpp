@@ -44,7 +44,7 @@ double tau_des[MAX_DOF];
 double cur_des[MAX_DOF];
 
 // USER HAND CONFIGURATION
-const bool	RIGHT_HAND = true;
+const bool	RIGHT_HAND = false;
 const int	HAND_VERSION = 4;
 
 const double tau_cov_const_v4 = 1200.0; // 1200.0 for SAH040xxxxx
@@ -103,12 +103,17 @@ static void* ioThreadProc(void* inst)
         /* wait for the event */
         while (0 == get_message(CAN_Ch, &id, &len, data, FALSE))
         {
+//            printf(">CAN(%d): ", CAN_Ch);
+//            for(int nd=0; nd<len; nd++)
+//                printf("%02x ", data[nd]);
+//            printf("\n");
+
             switch (id)
             {
             case ID_RTR_HAND_INFO:
             {
-                printf(">CAN(%d): AllegroHand hardware version: 0x%02x%02x\n", CAN_Ch, data[0], data[1]);
-                printf("                      firmware version: 0x%02x%02x\n", data[2], data[3]);
+                printf(">CAN(%d): AllegroHand hardware version: 0x%02x%02x\n", CAN_Ch, data[1], data[0]);
+                printf("                      firmware version: 0x%02x%02x\n", data[3], data[2]);
                 printf("                      hardware type: %d(%s)\n", data[4], (data[4] == 0 ? "right" : "left"));
                 printf("                      temperature: %d (celsius)\n", data[5]);
                 printf("                      status: 0x%02x\n", data[6]);
@@ -130,26 +135,38 @@ static void* ioThreadProc(void* inst)
             {
                 int findex = (id & 0x00000007);
 
-                vars.enc_actual[findex*4 + 0] = (int)(data[0] | (data[1] << 8));
-                vars.enc_actual[findex*4 + 1] = (int)(data[2] | (data[3] << 8));
-                vars.enc_actual[findex*4 + 2] = (int)(data[4] | (data[5] << 8));
-                vars.enc_actual[findex*4 + 3] = (int)(data[6] | (data[7] << 8));
+                vars.enc_actual[findex*4 + 0] = (short)(data[0] | (data[1] << 8));
+                vars.enc_actual[findex*4 + 1] = (short)(data[2] | (data[3] << 8));
+                vars.enc_actual[findex*4 + 2] = (short)(data[4] | (data[5] << 8));
+                vars.enc_actual[findex*4 + 3] = (short)(data[6] | (data[7] << 8));
                 data_return |= (0x01 << (findex));
                 recvNum++;
+
+//                printf(">CAN(%d): Encoder[%d] Count : %6d %6d %6d %6d\n"
+//                    , CAN_Ch, findex
+//                    , vars.enc_actual[findex*4 + 0], vars.enc_actual[findex*4 + 1]
+//                    , vars.enc_actual[findex*4 + 2], vars.enc_actual[findex*4 + 3]);
 
                 if (data_return == (0x01 | 0x02 | 0x04 | 0x08))
                 {
                     // convert encoder count to joint angle
                     for (i=0; i<MAX_DOF; i++)
                     {
-                        q[i] = (double)(vars.enc_actual[i]-32768)*(333.3/65536.0)*(3.141592/180.0);
+                        q[i] = (double)(vars.enc_actual[i])*(333.3/65536.0)*(3.141592/180.0);
                     }
+
+                    // print joint angles
+//                    for (int i=0; i<4; i++)
+//                    {
+//                        printf(">CAN(%d): Joint[%d] Pos : %5.1f %5.1f %5.1f %5.1f\n"
+//                            , CAN_Ch, i, q[i*4+0]*RAD2DEG, q[i*4+1]*RAD2DEG, q[i*4+2]*RAD2DEG, q[i*4+3]*RAD2DEG);
+//                    }
 
                     // compute joint torque
                     ComputeTorque();
 
                     // convert desired torque to desired current and PWM count
-                    for (i=0; i<MAX_DOF; i++)
+                    for (int i=0; i<MAX_DOF; i++)
                     {
                         cur_des[i] = tau_des[i];
                         if (cur_des[i] > 1.0) cur_des[i] = 1.0;
@@ -159,11 +176,10 @@ static void* ioThreadProc(void* inst)
                     // send torques
                     for (int i=0; i<4;i++)
                     {
-                        // the index order for motors is different from that of encoders
-                        vars.pwm_demand[i*4+3] = (short)(cur_des[i*4+0]*tau_cov_const_v4);
-                        vars.pwm_demand[i*4+2] = (short)(cur_des[i*4+1]*tau_cov_const_v4);
-                        vars.pwm_demand[i*4+1] = (short)(cur_des[i*4+2]*tau_cov_const_v4);
-                        vars.pwm_demand[i*4+0] = (short)(cur_des[i*4+3]*tau_cov_const_v4);
+                        vars.pwm_demand[i*4+0] = (short)(cur_des[i*4+0]*tau_cov_const_v4);
+                        vars.pwm_demand[i*4+1] = (short)(cur_des[i*4+1]*tau_cov_const_v4);
+                        vars.pwm_demand[i*4+2] = (short)(cur_des[i*4+2]*tau_cov_const_v4);
+                        vars.pwm_demand[i*4+3] = (short)(cur_des[i*4+3]*tau_cov_const_v4);
 
                         command_set_torque(CAN_Ch, i, &vars.pwm_demand[4*i]);
                         //usleep(5);
@@ -187,10 +203,10 @@ static void* ioThreadProc(void* inst)
             case ID_RTR_TEMPERATURE_4:
             {
                 int sindex = (id & 0x00000007);
-                int celsius = (int)(data[0] << 24) |
-                              (int)(data[1] << 16) |
-                              (int)(data[2] << 8 ) |
-                              (int)(data[3]);
+                int celsius = (int)(data[0]      ) |
+                              (int)(data[1] << 8 ) |
+                              (int)(data[2] << 16) |
+                              (int)(data[3] << 24);
                 printf(">CAN(%d): Temperature[%d]: %d (celsius)\n", CAN_Ch, sindex, celsius);
             }
                 break;
@@ -281,6 +297,18 @@ void ComputeTorque()
     pBHand->SetJointDesiredPosition(q_des);
     pBHand->UpdateControl(0);
     pBHand->GetJointTorque(tau_des);
+
+//    static int j_active[] = {
+//        0, 0, 0, 0,
+//        0, 0, 0, 0,
+//        0, 0, 0, 0,
+//        1, 1, 1, 1
+//    };
+//    for (int i=0; i<MAX_DOF; i++) {
+//        if (j_active[i] == 0) {
+//            tau_des[i] = 0;
+//        }
+//    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -422,7 +450,6 @@ void PrintInstruction()
     printf("M: Two-finger pinch (middle-thumb)\n");
     printf("E: Envelop Grasp (all fingers)\n");
     printf("A: Gravity Compensation\n\n");
-
     printf("F: Servos OFF (any grasp cmd turns them back on)\n");
     printf("Q: Quit this program\n");
 

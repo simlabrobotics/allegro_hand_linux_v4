@@ -193,6 +193,7 @@ int canSentRTR(int bus, int id, int blocking){
     char strMsg[256];
 
     CANMsg.ID = (id << 2) | CAN_ID;
+    CANMsg.LEN = 0;
     CANMsg.MSGTYPE = PCAN_MESSAGE_RTR; // Remote Transmission Request
     Status = CAN_Write(canDev[bus], &CANMsg);
     if (Status != PCAN_ERROR_OK)
@@ -300,17 +301,17 @@ int command_set_torque(int ch, int findex, short* pwm)
 
     if (findex >= 0 && findex < NUM_OF_FINGERS)
     {
-        data[0] = (unsigned char)( (pwm[0] >> 8) & 0x00ff);
-        data[1] = (unsigned char)( (pwm[0]     ) & 0x00ff);
+        data[0] = (unsigned char)( (pwm[0]     ) & 0x00ff);
+        data[1] = (unsigned char)( (pwm[0] >> 8) & 0x00ff);
 
-        data[2] = (unsigned char)( (pwm[1] >> 8) & 0x00ff);
-        data[3] = (unsigned char)( (pwm[1]     ) & 0x00ff);
+        data[2] = (unsigned char)( (pwm[1]     ) & 0x00ff);
+        data[3] = (unsigned char)( (pwm[1] >> 8) & 0x00ff);
 
-        data[4] = (unsigned char)( (pwm[2] >> 8) & 0x00ff);
-        data[5] = (unsigned char)( (pwm[2]     ) & 0x00ff);
+        data[4] = (unsigned char)( (pwm[2]     ) & 0x00ff);
+        data[5] = (unsigned char)( (pwm[2] >> 8) & 0x00ff);
 
-        data[6] = (unsigned char)( (pwm[3] >> 8) & 0x00ff);
-        data[7] = (unsigned char)( (pwm[3]     ) & 0x00ff);
+        data[6] = (unsigned char)( (pwm[3]     ) & 0x00ff);
+        data[7] = (unsigned char)( (pwm[3] >> 8) & 0x00ff);
 
         Txid = ID_CMD_SET_TORQUE_1 + findex;
 
@@ -333,17 +334,17 @@ int command_set_pose(int ch, int findex, short* jposition)
 
     if (findex >= 0 && findex < NUM_OF_FINGERS)
     {
-        data[0] = (unsigned char)( (jposition[0] >> 8) & 0x00ff);
-        data[1] = (unsigned char)( (jposition[0]     ) & 0x00ff);
+        data[0] = (unsigned char)( (jposition[0]     ) & 0x00ff);
+        data[1] = (unsigned char)( (jposition[0] >> 8) & 0x00ff);
 
-        data[2] = (unsigned char)( (jposition[1] >> 8) & 0x00ff);
-        data[3] = (unsigned char)( (jposition[1]     ) & 0x00ff);
+        data[2] = (unsigned char)( (jposition[1]     ) & 0x00ff);
+        data[3] = (unsigned char)( (jposition[1] >> 8) & 0x00ff);
 
-        data[4] = (unsigned char)( (jposition[2] >> 8) & 0x00ff);
-        data[5] = (unsigned char)( (jposition[2]     ) & 0x00ff);
+        data[4] = (unsigned char)( (jposition[2]     ) & 0x00ff);
+        data[5] = (unsigned char)( (jposition[2] >> 8) & 0x00ff);
 
-        data[6] = (unsigned char)( (jposition[3] >> 8) & 0x00ff);
-        data[7] = (unsigned char)( (jposition[3]     ) & 0x00ff);
+        data[6] = (unsigned char)( (jposition[3]     ) & 0x00ff);
+        data[7] = (unsigned char)( (jposition[3] >> 8) & 0x00ff);
 
         Txid = ID_CMD_SET_POSE_1 + findex;
 
@@ -366,12 +367,12 @@ int command_set_period(int ch, short* period)
     Txid = ID_CMD_SET_PERIOD;
     if (period != 0)
     {
-        data[0] = (unsigned char)( (period[0] >> 8) & 0x00ff);
-        data[1] = (unsigned char)( (period[0]     ) & 0x00ff);
-        data[2] = (unsigned char)( (period[1] >> 8) & 0x00ff);
-        data[3] = (unsigned char)( (period[1]     ) & 0x00ff);
-        data[4] = (unsigned char)( (period[2] >> 8) & 0x00ff);
-        data[5] = (unsigned char)( (period[2]     ) & 0x00ff);
+        data[0] = (unsigned char)( (period[0]     ) & 0x00ff);
+        data[1] = (unsigned char)( (period[0] >> 8) & 0x00ff);
+        data[2] = (unsigned char)( (period[1]     ) & 0x00ff);
+        data[3] = (unsigned char)( (period[1] >> 8) & 0x00ff);
+        data[4] = (unsigned char)( (period[2]     ) & 0x00ff);
+        data[5] = (unsigned char)( (period[2] >> 8) & 0x00ff);
     }
     else
     {
@@ -409,10 +410,10 @@ int command_set_rs485_baudrate(int ch, unsigned int baudrate)
 
     Txid = ID_CMD_CONFIG;
     data[0] = 0x0;
-    data[1] = (unsigned char)( (baudrate >> 24) & 0x000000ff) | 0x80;
-    data[2] = (unsigned char)( (baudrate >> 16) & 0x000000ff);
-    data[3] = (unsigned char)( (baudrate >> 8 ) & 0x000000ff);
-    data[4] = (unsigned char)( (baudrate      ) & 0x000000ff);
+    data[1] = (unsigned char)( (baudrate      ) & 0x000000ff);
+    data[2] = (unsigned char)( (baudrate >> 8 ) & 0x000000ff);
+    data[3] = (unsigned char)( (baudrate >> 16) & 0x000000ff);
+    data[4] = (unsigned char)( (baudrate >> 24) & 0x000000ff) | 0x80;
     data[5] = 0x0;
     ret = canSendMsg(ch, Txid, 6, data, TRUE);
 
