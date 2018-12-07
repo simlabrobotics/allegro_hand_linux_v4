@@ -50,7 +50,9 @@ bin/grasp
 
 8. Use keyboard command to move Allegro Hand!!!!
 
-================================================
 If you have any questions, feel free to ask.
+
+Contact Information
+======================
 
 info@wonikrobotics.com
