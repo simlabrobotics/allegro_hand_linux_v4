@@ -41,6 +41,23 @@ CANAPI_BEGIN
 #define NUM_OF_FINGERS          4 // number of fingers
 #define NUM_OF_TEMP_SENSORS     4 // number of temperature sensors
 
+//structures
+typedef struct __attribute__((packed))
+{
+    unsigned short position;
+    unsigned short imu;
+    unsigned short temp;
+} can_period_msg_t;
+
+typedef struct __attribute__((packed))
+{
+    unsigned char set;
+    unsigned char did;
+    unsigned int baudrate;
+} can_config_msg_t;
+
+
+
 /*=========================================*/
 /*       Global file-scope variables       */
 /*=========================================*/
@@ -296,26 +313,19 @@ int command_set_torque(int ch, int findex, short* pwm)
     assert(findex >= 0 && findex < NUM_OF_FINGERS);
 
     long Txid;
-    unsigned char data[8];
+    short duty[4];
     int ret;
 
     if (findex >= 0 && findex < NUM_OF_FINGERS)
     {
-        data[0] = (unsigned char)( (pwm[0]     ) & 0x00ff);
-        data[1] = (unsigned char)( (pwm[0] >> 8) & 0x00ff);
-
-        data[2] = (unsigned char)( (pwm[1]     ) & 0x00ff);
-        data[3] = (unsigned char)( (pwm[1] >> 8) & 0x00ff);
-
-        data[4] = (unsigned char)( (pwm[2]     ) & 0x00ff);
-        data[5] = (unsigned char)( (pwm[2] >> 8) & 0x00ff);
-
-        data[6] = (unsigned char)( (pwm[3]     ) & 0x00ff);
-        data[7] = (unsigned char)( (pwm[3] >> 8) & 0x00ff);
+        duty[0] = pwm[0];
+        duty[1] = pwm[1];
+        duty[2] = pwm[2];
+        duty[3] = pwm[3];
 
         Txid = ID_CMD_SET_TORQUE_1 + findex;
 
-        ret = canSendMsg(ch, Txid, 8, data, TRUE);
+        ret = canSendMsg(ch, Txid, 8, (unsigned char *)duty, TRUE);
     }
     else
         return -1;
@@ -329,26 +339,19 @@ int command_set_pose(int ch, int findex, short* jposition)
     assert(findex >= 0 && findex < NUM_OF_FINGERS);
 
     long Txid;
-    unsigned char data[8];
+    short pose[4];
     int ret;
 
     if (findex >= 0 && findex < NUM_OF_FINGERS)
     {
-        data[0] = (unsigned char)( (jposition[0]     ) & 0x00ff);
-        data[1] = (unsigned char)( (jposition[0] >> 8) & 0x00ff);
-
-        data[2] = (unsigned char)( (jposition[1]     ) & 0x00ff);
-        data[3] = (unsigned char)( (jposition[1] >> 8) & 0x00ff);
-
-        data[4] = (unsigned char)( (jposition[2]     ) & 0x00ff);
-        data[5] = (unsigned char)( (jposition[2] >> 8) & 0x00ff);
-
-        data[6] = (unsigned char)( (jposition[3]     ) & 0x00ff);
-        data[7] = (unsigned char)( (jposition[3] >> 8) & 0x00ff);
+        pose[0] = jposition[0];
+        pose[1] = jposition[1];
+        pose[2] = jposition[2];
+        pose[3] = jposition[3];
 
         Txid = ID_CMD_SET_POSE_1 + findex;
 
-        ret = canSendMsg(ch, Txid, 8, data, TRUE);
+        ret = canSendMsg(ch, Txid, 8, (unsigned char *)pose, TRUE);
     }
     else
         return -1;
@@ -361,24 +364,23 @@ int command_set_period(int ch, short* period)
     assert(ch >= 0 && ch < MAX_BUS);
 
     long Txid;
-    unsigned char data[8];
+    can_period_msg_t msg;
     int ret;
 
     Txid = ID_CMD_SET_PERIOD;
     if (period != 0)
     {
-        data[0] = (unsigned char)( (period[0]     ) & 0x00ff);
-        data[1] = (unsigned char)( (period[0] >> 8) & 0x00ff);
-        data[2] = (unsigned char)( (period[1]     ) & 0x00ff);
-        data[3] = (unsigned char)( (period[1] >> 8) & 0x00ff);
-        data[4] = (unsigned char)( (period[2]     ) & 0x00ff);
-        data[5] = (unsigned char)( (period[2] >> 8) & 0x00ff);
+        msg.position = period[0];
+        msg.imu = period[1];
+        msg.temp = period[2];
     }
     else
     {
-        data[0] = data[1] = data[2] = data[3] = data[4] = data[5] = 0x0;
+        msg.position = 0;
+        msg.imu = 0;
+        msg.temp = 0;
     }
-    ret = canSendMsg(ch, Txid, 6, data, TRUE);
+    ret = canSendMsg(ch, Txid, 6, (unsigned char *)&msg, TRUE);
 
     return ret;
 }
@@ -388,14 +390,14 @@ int command_set_device_id(int ch, unsigned char did)
     assert(ch >= 0 && ch < MAX_BUS);
 
     long Txid;
-    unsigned char data[8];
     int ret;
+    can_config_msg_t msg;
 
     Txid = ID_CMD_CONFIG;
-    data[0] = did | 0x80;
-    data[1] = 0x0;
-    data[5] = 0x0;
-    ret = canSendMsg(ch, Txid, 6, data, TRUE);
+    msg.set = 0x01;
+    msg.did = did;
+    msg.baudrate = 0;
+    ret = canSendMsg(ch, Txid, 6, (unsigned char *)&msg, TRUE);
 
     return ret;
 }
@@ -405,17 +407,15 @@ int command_set_rs485_baudrate(int ch, unsigned int baudrate)
     assert(ch >= 0 && ch < MAX_BUS);
 
     long Txid;
-    unsigned char data[8];
     int ret;
+    can_config_msg_t msg;
 
     Txid = ID_CMD_CONFIG;
-    data[0] = 0x0;
-    data[1] = (unsigned char)( (baudrate      ) & 0x000000ff);
-    data[2] = (unsigned char)( (baudrate >> 8 ) & 0x000000ff);
-    data[3] = (unsigned char)( (baudrate >> 16) & 0x000000ff);
-    data[4] = (unsigned char)( (baudrate >> 24) & 0x000000ff) | 0x80;
-    data[5] = 0x0;
-    ret = canSendMsg(ch, Txid, 6, data, TRUE);
+
+    msg.set = 0x02;
+    msg.did = 0;
+    msg.baudrate = baudrate;
+    ret = canSendMsg(ch, Txid, 6, (unsigned char *)&msg, TRUE);
 
     return ret;
 }
